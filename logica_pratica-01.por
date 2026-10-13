@@ -3,7 +3,7 @@ programa
 	funcao inicio()
 	{
 		// Constante para a capacidade do palete
-	 inteiro CAIXAS_POR_PALETE = 48
+	 inteiro CAIXAS_POR_PALETE = 40
 		
 		// Variáveis de tipos diferentes
 		inteiro quantidadeCaixas, paletesCompletos, caixasSobra
