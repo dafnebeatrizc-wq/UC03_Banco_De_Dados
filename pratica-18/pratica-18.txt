@@ -1,0 +1,68 @@
+Atividade 18 - Parte 1
+
+
+-- passos 4 a 6: a trigger do estoque
+DROP TRIGGER IF EXISTS tg_item_baixa_estoque;
+DELIMITER //
+CREATE TRIGGER tg_item_baixa_estoque
+AFTER INSERT ON item_pedido
+FOR EACH ROW
+BEGIN
+    UPDATE estoque
+    SET quantidade = quantidade - NEW.quantidade
+    WHERE produto_codigo = NEW.produto_codigo
+      AND unidade_codigo = (SELECT unidade_codigo FROM pedido WHERE codigo = NEW.pedido_codigo);
+END //
+DELIMITER ;
+
+Parte 2
+
+-- passos 7 a 9: o log e a trigger de auditoria
+CREATE TABLE IF NOT EXISTS log_preco_produto (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    produto_codigo INT NOT NULL,
+    preco_antigo DECIMAL(10, 2) NOT NULL,
+    preco_novo DECIMAL(10, 2) NOT NULL,
+    alterado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+    usuario VARCHAR(100),
+    FOREIGN KEY (produto_codigo) REFERENCES produto(codigo)
+);
+
+DROP TRIGGER IF EXISTS tg_produto_preco;
+DELIMITER //
+CREATE TRIGGER tg_produto_preco
+AFTER UPDATE ON produto
+FOR EACH ROW
+BEGIN
+    IF NEW.preco_tabela <> OLD.preco_tabela THEN
+        INSERT INTO log_preco_produto (produto_codigo, preco_antigo, preco_novo, usuario)
+        VALUES (NEW.produto_codigo, OLD.preco_tabela, NEW.preco_tabela, USER());
+    END IF;
+END //
+DELIMITER ;
+
+
+parte 3
+
+-- Teste 1: Inserir item no pedido 11 e conferir estoque
+INSERT INTO item_pedido (pedido_codigo, produto_codigo, quantidade, preco_cobrado) 
+VALUES (11, 3, 2, 13.00);
+SELECT * FROM estoque WHERE produto_codigo = 3 AND unidade_codigo = 1;
+
+-- Teste 2: Atualizar disponibilidade (não mexe no preço) e conferir log
+UPDATE produto SET disponivel = FALSE WHERE codigo = 6;
+SELECT * FROM log_preco_produto;
+
+-- Teste 3: Tentar inserir quantidade maior que o estoque (há 15 no estoque)
+INSERT INTO item_pedido (pedido_codigo, produto_codigo, quantidade, preco_cobrado) 
+VALUES (11, 2, 20, 18.00);
+
+-- Passo 11: Executar a ocorrência
+UPDATE produto SET preco_tabela = 9.00 WHERE codigo = 1;
+
+-- Passo 12: Consultar o log com JOIN para ver o nome do produto
+SELECT l.id, p.nome AS produto, l.preco_antigo, l.preco_novo, l.alterado_em, l.usuario
+FROM log_preco_produto l
+JOIN produto p ON l.produto_codigo = p.codigo;
+
+
